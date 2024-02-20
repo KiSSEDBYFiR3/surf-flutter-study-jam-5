@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meme_generator/core/di/di_container.dart';
-import 'package:meme_generator/feature/presentation/screens/meme_generator_screen.dart';
+import 'package:meme_generator/feature/presentation/screens/meme_generator_screen/meme_generator_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

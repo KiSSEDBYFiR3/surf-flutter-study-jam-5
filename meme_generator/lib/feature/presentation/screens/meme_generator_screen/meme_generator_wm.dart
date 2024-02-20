@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:elementary/elementary.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:meme_generator/core/consts/app_constants.dart';
 import 'package:meme_generator/core/di/dependencies.dart';
-import 'package:meme_generator/feature/presentation/screens/meme_generator_model.dart';
-import 'package:meme_generator/feature/presentation/screens/meme_generator_screen.dart';
+import 'package:meme_generator/feature/domain/entity/template.dart';
+import 'package:meme_generator/feature/presentation/screens/meme_generator_screen/meme_generator_model.dart';
+import 'package:meme_generator/feature/presentation/screens/meme_generator_screen/meme_generator_screen.dart';
+import 'package:meme_generator/feature/presentation/screens/meme_template_screen/meme_template_screen.dart';
+import 'package:meme_generator/feature/presentation/widgets/image_selector.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:rxdart/subjects.dart';
@@ -13,21 +18,30 @@ import 'package:share_plus/share_plus.dart';
 
 abstract interface class IMemeGeneratorWM
     extends WidgetModel<MemeGeneratorWidget, IMemeGeneratorModel> {
-  TextEditingController get memeTextController;
+  TextEditingController get memeTextControllerCenter;
+  TextEditingController get memeTextControllerTop;
+  TextEditingController get memeTextControllerBottom;
+
   TextEditingController get textFieldController;
 
   ScreenshotController get screenshotController;
 
   BehaviorSubject<Image> get imageController;
 
-  FocusNode get focusNode;
+  BehaviorSubject<Template> get templateController;
+
+  FocusNode get focusNodeTop;
+  FocusNode get focusNodeBottom;
+  FocusNode get focusNodeCenter;
 
   IMemeGeneratorWM(super.model);
 
   void unfocus();
 
-  void showImageSelectAlertDialod();
-  void saveAndShare();
+  Future<void> showImageSelectAlertDialod();
+  Future<void> saveAndShare();
+
+  Future<void> goToTemplates();
 }
 
 final class MemeGeneratorWM
@@ -36,10 +50,21 @@ final class MemeGeneratorWM
   MemeGeneratorWM(super.model);
 
   @override
-  final TextEditingController memeTextController = TextEditingController();
+  final TextEditingController memeTextControllerCenter =
+      TextEditingController();
+  @override
+  final TextEditingController memeTextControllerTop = TextEditingController();
 
   @override
-  final FocusNode focusNode = FocusNode();
+  final TextEditingController memeTextControllerBottom =
+      TextEditingController();
+
+  @override
+  final FocusNode focusNodeTop = FocusNode();
+  @override
+  final FocusNode focusNodeBottom = FocusNode();
+  @override
+  final FocusNode focusNodeCenter = FocusNode();
 
   @override
   final ScreenshotController screenshotController = ScreenshotController();
@@ -47,17 +72,25 @@ final class MemeGeneratorWM
   @override
   void initWidgetModel() {
     super.initWidgetModel();
-    memeTextController.text = AppConstants.defaultText;
+    memeTextControllerBottom.text = AppConstants.defaultText;
+
     _imageController.add(
       Image.network(
         AppConstants.defaultImage,
         fit: BoxFit.cover,
       ),
     );
+    _templateController.add(
+      Template(
+        id: 0,
+        imagePath: AppConstants.defaultImage,
+        bottomTextFieldValue: AppConstants.defaultText,
+      ),
+    );
   }
 
   @override
-  void saveAndShare() async {
+  Future<void> saveAndShare() async {
     final directory = await getApplicationDocumentsDirectory();
     final path = await screenshotController.captureAndSave(directory.path);
     if (path != null) {
@@ -72,9 +105,17 @@ final class MemeGeneratorWM
   @override
   void dispose() {
     _imageController.close();
-    memeTextController.dispose();
+    _templateController.close();
+
+    memeTextControllerTop.dispose();
+    memeTextControllerCenter.dispose();
+    memeTextControllerBottom.dispose();
+
     textFieldController.dispose();
-    focusNode.dispose();
+
+    focusNodeTop.dispose();
+    focusNodeBottom.dispose();
+    focusNodeCenter.dispose();
     super.dispose();
   }
 
@@ -95,7 +136,7 @@ final class MemeGeneratorWM
     final result = await showModalBottomSheet<bool?>(
       constraints: const BoxConstraints(maxHeight: 200),
       context: context,
-      builder: (context) => _ImageSelectorTextField(
+      builder: (context) => ImageSelectorTextField(
         controller: textFieldController,
         onTap: Navigator.of(context).pop,
       ),
@@ -126,7 +167,7 @@ final class MemeGeneratorWM
   }
 
   @override
-  void showImageSelectAlertDialod() async {
+  Future<void> showImageSelectAlertDialod() async {
     await showDialog(
       context: context,
       builder: (context) {
@@ -152,73 +193,51 @@ final class MemeGeneratorWM
       },
     );
   }
+
+  @override
+  Future<void> goToTemplates() async {
+    final template = await Navigator.of(context).push<Template>(
+      MaterialPageRoute(
+        builder: (context) => const MemeTemplateScreen(),
+      ),
+    );
+    if (template != null) {
+      _templateController.add(template);
+      memeTextControllerBottom.text = template.bottomTextFieldValue ?? '';
+      memeTextControllerCenter.text = template.centerTextFieldValue ?? '';
+      memeTextControllerTop.text = template.topTextFieldValue ?? '';
+      final image = await _getImage(template.imagePath);
+      if (image != null) {
+        _imageController.add(image);
+      }
+    }
+  }
+
+  Future<Image?> _getImage(String? imageLink) async {
+    if (imageLink == null) {
+      return _imageController.valueOrNull;
+    }
+    if (imageLink.contains('http')) {
+      final image = Image.network(
+        imageLink,
+        fit: BoxFit.cover,
+      );
+      return image;
+    }
+    final bytes = await File(
+      imageLink,
+    ).readAsBytes();
+
+    final image = Image.memory(bytes);
+    return image;
+  }
+
+  @override
+  BehaviorSubject<Template> get templateController => _templateController;
+  final BehaviorSubject<Template> _templateController = BehaviorSubject();
 }
 
 IMemeGeneratorWM memeGeneratorWMFactory(BuildContext context) {
   final model = context.read<Dependencies>().memeGeneratorModel;
   return MemeGeneratorWM(model);
-}
-
-class _ImageSelectorTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final Function(bool?) onTap;
-  const _ImageSelectorTextField({
-    super.key,
-    required this.onTap,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: TextField(
-            decoration: const InputDecoration(
-              filled: true,
-              fillColor: Color.fromARGB(255, 250, 222, 222),
-              focusColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(
-                  Radius.circular(16),
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.all(
-                  Radius.circular(16),
-                ),
-              ),
-              disabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.all(
-                  Radius.circular(16),
-                ),
-              ),
-            ),
-            controller: controller,
-          ),
-        ),
-        const SizedBox(
-          height: 16,
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 48),
-          child: OutlinedButton(
-            onPressed: () => onTap(true),
-            style: const ButtonStyle(
-              backgroundColor: MaterialStatePropertyAll(Colors.deepPurple),
-            ),
-            child: const Center(
-              child: Text(
-                'Выбрать',
-                style: TextStyle(
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }

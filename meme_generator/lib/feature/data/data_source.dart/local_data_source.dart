@@ -20,7 +20,7 @@ final class LocalDataSource implements ILocalDataSource {
 
     final templatesToSave = templates
         .map(
-          (e) => e.toJson().toString(),
+          (e) => jsonEncode(e),
         )
         .toList();
 
@@ -46,7 +46,7 @@ final class LocalDataSource implements ILocalDataSource {
 
       final templatesToUpdate = templates
           .map(
-            (e) => e.toJson().toString(),
+            (e) => jsonEncode(e),
           )
           .toList();
 
@@ -56,9 +56,55 @@ final class LocalDataSource implements ILocalDataSource {
 
   @override
   Future<List<TemplateDto>> getAllTemplates() async {
+    if (await checkIfFirstRun()) {
+      final templates = _generateDefaultTemplates();
+
+      final stringModels =
+          templates.map((e) => jsonEncode(e.toJson())).toList();
+      await prefs.setStringList(AppConstants.templatesKey, stringModels);
+
+      return templates;
+    }
+
     final stringModel = prefs.getStringList(AppConstants.templatesKey);
     final json = stringModel?.map((e) => jsonDecode(e) as Json).toList();
 
     return json?.map(TemplateDto.fromJson).toList() ?? [];
+  }
+
+  Future<bool> checkIfFirstRun() async {
+    final isFirstRun = prefs.getBool(AppConstants.firstRun);
+    if (isFirstRun == null) {
+      prefs.setBool(AppConstants.firstRun, false);
+      return true;
+    }
+    return isFirstRun;
+  }
+
+  /// Дэфолтные шаблоны для первого запуска приложения, так как из сети ничего не получаем
+  List<TemplateDto> _generateDefaultTemplates() {
+    return const [
+      TemplateDto(
+        id: 1,
+        imagePath: AppConstants.defaultImage,
+        topTextFieldValue: AppConstants.defaultText,
+      ),
+      TemplateDto(
+        id: 2,
+        imagePath: AppConstants.defaultImage,
+        bottomTextFieldValue: AppConstants.defaultText,
+      ),
+      TemplateDto(
+        id: 3,
+        imagePath: AppConstants.defaultImage,
+        centerTextFieldValue: AppConstants.defaultText,
+      ),
+      TemplateDto(
+        id: 4,
+        imagePath: AppConstants.defaultImage,
+        topTextFieldValue: AppConstants.defaultText,
+        bottomTextFieldValue: AppConstants.defaultText,
+      ),
+    ];
   }
 }
