@@ -26,6 +26,10 @@
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Для загрузки фотографий требуется доступ к камере</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Для загрузки фотографий требуется доступ к хранилищу</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>

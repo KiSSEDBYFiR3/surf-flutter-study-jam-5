@@ -6,18 +6,34 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: 3.2.3 # Dart SDK version
-  flutter: 3.16.3 # Flutter SDK version
+  sdk: '>=3.2.6 <4.0.0' # Dart SDK version
+  flutter: '>=3.13.0 <4.0.0' # Flutter SDK version
 
 dependencies:
   flutter:
     sdk: flutter
 
   cupertino_icons: ^1.0.2
+  elementary: ^3.0.0
+  elementary_helper: ^1.0.1
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+  auto_route: ^6.1.0
+  provider: ^6.0.5
+  rxdart: ^0.27.7
+  image_picker: ^1.0.7
+  screenshot: ^2.1.0
+  path_provider: ^2.1.2
+  share_plus: ^7.2.2
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  build_runner: ^2.3.3
+  auto_route_generator: ^6.1.0
+  json_serializable: ^6.7.1
+  freezed: ^2.4.6
 
   flutter_lints: ^2.0.1
 flutter:
